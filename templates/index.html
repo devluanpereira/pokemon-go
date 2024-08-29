@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PokeAPI with Go and HTMX</title>
+    <!-- Corrija o caminho do CSS para corresponder à estrutura -->
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://unpkg.com/htmx.org@1.8.4"></script>
+</head>
+<body>
+    <h1>Buscar Pokémon</h1>
+    <form hx-get="/pokemon" hx-target="#result" hx-swap="innerHTML">
+        <input type="text" name="name" placeholder="Nome do Pokémon" required>
+        <button type="submit">Buscar</button>
+    </form>
+    <div id="result"></div>
+</body>
+</html>

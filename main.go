@@ -5,65 +5,82 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
+	"strings"
 	"text/template"
 )
 
 // Estrutura para armazenar os dados do Pokémon
-
 type Pokemon struct {
-    Name string `json:"name"`
-    Sprites struct {
-        FrontDefault string `json:"front_default"`
-    } `json:"sprites"`
+	Name    string `json:"name"`
+	Sprites struct {
+		FrontDefault string `json:"front_default"`
+	} `json:"sprites"`
 }
 
-// Função para buscar os dados do Pokemon da PokeApi
-
+// Função para buscar os dados do Pokémon da PokeAPI
 func fetchPokemon(name string) (*Pokemon, error) {
-	url := fmt.Sprintf("https://pokeapi.co/api/v2/pokemon/%s", name)
+	// Sanitizando o nome do Pokémon
+	escapedName := url.QueryEscape(strings.ToLower(strings.TrimSpace(name)))
+	url := fmt.Sprintf("https://pokeapi.co/api/v2/pokemon/%s", escapedName)
+
 	resp, err := http.Get(url)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("erro ao conectar à PokeAPI: %v", err)
 	}
 	defer resp.Body.Close()
 
+	// Verificando se o status da resposta é 200 OK
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("Pokémon não encontrado. Verifique o nome e tente novamente.")
+	} else if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("erro: PokeAPI retornou status %d", resp.StatusCode)
+	}
+
 	var pokemon Pokemon
 	if err := json.NewDecoder(resp.Body).Decode(&pokemon); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("erro ao decodificar resposta da API: %v", err)
 	}
 
 	return &pokemon, nil
 }
 
-// Função para renderizar a pagina inicial
-
+// Função para renderizar a página inicial
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl := template.Must(template.ParseFiles("templates/index.html"))
-	tmpl.Execute(w, nil)
+	if err := tmpl.Execute(w, nil); err != nil {
+		log.Printf("erro ao renderizar index.html: %v", err)
+	}
 }
 
-// Função para rendenrizar o card do pokemon
-
+// Função para renderizar o card do Pokémon
 func pokemonHandler(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("name")
 	if name == "" {
-		http.Error(w, "Faltou o nome do Pokemon.", http.StatusBadRequest)
+		http.Error(w, "Faltou o nome do Pokémon.", http.StatusBadRequest)
 		return
 	}
 
 	pokemon, err := fetchPokemon(name)
 	if err != nil {
-		http.Error(w, "Erro ao buscar o Pokemon.", http.StatusInternalServerError)
+		log.Printf("erro ao buscar o Pokémon: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	tmpl := template.Must(template.ParseFiles("templates/pokemon.html"))
-	tmpl.Execute(w, pokemon)
+	if err := tmpl.Execute(w, pokemon); err != nil {
+		log.Printf("erro ao renderizar pokemon.html: %v", err)
+	}
 }
 
 func main() {
+	// Handler para arquivos estáticos
+	fs := http.FileServer(http.Dir("static"))
+	http.Handle("/static/", http.StripPrefix("/static/", fs))
+
 	http.HandleFunc("/", indexHandler)
 	http.HandleFunc("/pokemon", pokemonHandler)
-	fmt.Println("Servidor rodando na porta :8080...")
+	fmt.Println("Servidor rodando na porta 8080...")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
