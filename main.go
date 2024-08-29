@@ -18,9 +18,16 @@ type Pokemon struct {
 	} `json:"sprites"`
 }
 
-// Função para buscar os dados do Pokémon da PokeAPI
+// Estrutura para listar todos os Pokémon
+type PokemonList struct {
+	Results []struct {
+		Name string `json:"name"`
+		URL  string `json:"url"`
+	} `json:"results"`
+}
+
+// Função para buscar os dados do Pokémon por nome
 func fetchPokemon(name string) (*Pokemon, error) {
-	// Sanitizando o nome do Pokémon
 	escapedName := url.QueryEscape(strings.ToLower(strings.TrimSpace(name)))
 	url := fmt.Sprintf("https://pokeapi.co/api/v2/pokemon/%s", escapedName)
 
@@ -30,7 +37,6 @@ func fetchPokemon(name string) (*Pokemon, error) {
 	}
 	defer resp.Body.Close()
 
-	// Verificando se o status da resposta é 200 OK
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, fmt.Errorf("Pokémon não encontrado. Verifique o nome e tente novamente.")
 	} else if resp.StatusCode != http.StatusOK {
@@ -45,15 +51,54 @@ func fetchPokemon(name string) (*Pokemon, error) {
 	return &pokemon, nil
 }
 
-// Função para renderizar a página inicial
+// Função para buscar a lista inicial de Pokémon
+func fetchPokemonList() ([]Pokemon, error) {
+	// Definindo o número de Pokémon que queremos exibir inicialmente
+	const limit = 20
+	url := fmt.Sprintf("https://pokeapi.co/api/v2/pokemon?limit=%d", limit)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao conectar à PokeAPI: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("erro: PokeAPI retornou status %d", resp.StatusCode)
+	}
+
+	var list PokemonList
+	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
+		return nil, fmt.Errorf("erro ao decodificar lista da API: %v", err)
+	}
+
+	var pokemons []Pokemon
+	for _, result := range list.Results {
+		pokemon, err := fetchPokemon(result.Name)
+		if err == nil {
+			pokemons = append(pokemons, *pokemon)
+		}
+	}
+
+	return pokemons, nil
+}
+
+// Função para renderizar a página inicial com a lista de Pokémon
 func indexHandler(w http.ResponseWriter, r *http.Request) {
+	pokemons, err := fetchPokemonList()
+	if err != nil {
+		log.Printf("erro ao buscar lista de Pokémon: %v", err)
+		http.Error(w, "Erro ao carregar lista de Pokémon.", http.StatusInternalServerError)
+		return
+	}
+
 	tmpl := template.Must(template.ParseFiles("templates/index.html"))
-	if err := tmpl.Execute(w, nil); err != nil {
+	if err := tmpl.Execute(w, pokemons); err != nil {
 		log.Printf("erro ao renderizar index.html: %v", err)
 	}
 }
 
-// Função para renderizar o card do Pokémon
+// Função para renderizar o card do Pokémon pesquisado
 func pokemonHandler(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("name")
 	if name == "" {

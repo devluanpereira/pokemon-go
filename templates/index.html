@@ -5,16 +5,27 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PokeAPI with Go and HTMX</title>
-    <!-- Corrija o caminho do CSS para corresponder à estrutura -->
     <link rel="stylesheet" href="/static/styles.css">
     <script src="https://unpkg.com/htmx.org@1.8.4"></script>
 </head>
 <body>
-    <h1>Buscar Pokémon</h1>
+    <h1>Pokédex</h1>
     <form hx-get="/pokemon" hx-target="#result" hx-swap="innerHTML">
         <input type="text" name="name" placeholder="Nome do Pokémon" required>
         <button type="submit">Buscar</button>
     </form>
+
+    <!-- Div para exibir os resultados da busca -->
     <div id="result"></div>
+
+    <!-- Exibição dos Pokémon iniciais -->
+    <div class="pokemon-list">
+        {{range .}}
+        <div class="card">
+            <h2>{{.Name}}</h2>
+            <img src="{{.Sprites.FrontDefault}}" alt="{{.Name}}">
+        </div>
+        {{end}}
+    </div>
 </body>
 </html>
