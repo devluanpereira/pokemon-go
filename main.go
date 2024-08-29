@@ -15,6 +15,8 @@ type Pokemon struct {
     } `json:"sprites"`
 }
 
+// Função para buscar os dados do Pokemon da PokeApi
+
 func fetchPokemon(name string) (*Pokemon, error) {
 	url := fmt.Sprintf("https://pokeapi.co/api/v2/pokemon/%s", name)
 	resp, err := http.Get(url)
